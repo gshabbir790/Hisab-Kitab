@@ -1,6 +1,6 @@
 # Hissab Kitab
 
-Daily income / expense ledger (School, Home or any custom book) with running balance and PDF printing.
+Daily income / expense ledger (School, Home or any custom book) with running balance, editable entries, and PDF printing.
 
 - App name: Hissab Kitab
 - Package name: com.gshabbir
@@ -13,3 +13,9 @@ Daily income / expense ledger (School, Home or any custom book) with running bal
 
 ## Printing
 Tap the print icon in the app bar, choose all records or a date range, then print or save as PDF.
+
+
+## Entry editing
+- Tap any saved transaction to edit its amount, details, and date.
+- Or open the transaction action menu and choose **Edit entry**.
+- Use the action menu to delete a record with confirmation.
