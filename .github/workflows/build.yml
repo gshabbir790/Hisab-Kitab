@@ -33,12 +33,16 @@ jobs:
       - name: Set app name
         run: sed -i 's/android:label="[^"]*"/android:label="Hissab Kitab"/' android/app/src/main/AndroidManifest.xml
 
+      - name: Apply app icon
+        run: cp -r android_icons/* android/app/src/main/res/
+
       - run: flutter pub get
 
-      - name: Build release APK
-        run: flutter build apk --release
+      # Separate small APK per CPU type (much smaller than one big APK)
+      - name: Build release APKs
+        run: flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
 
       - uses: actions/upload-artifact@v4
         with:
           name: hissab-kitab-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/*-release.apk
