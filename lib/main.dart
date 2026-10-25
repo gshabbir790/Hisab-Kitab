@@ -14,7 +14,28 @@ class HissabApp extends StatelessWidget {
     return MaterialApp(
       title: 'Hissab Kitab',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.teal),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF176B58)),
+        scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFF5F7FA),
+          foregroundColor: Color(0xFF172B4D),
+          centerTitle: false,
+          elevation: 0,
+          titleTextStyle: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF172B4D)),
+        ),
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 0.8,
+          margin: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Color(0xFFF8FAFC),
+        ),
+      ),
       home: const HomePage(),
     );
   }
@@ -110,69 +131,124 @@ class _HomePageState extends State<HomePage> {
     return list;
   }
 
-  Future<void> _addEntry(bool income) async {
-    final amountC = TextEditingController();
-    final noteC = TextEditingController();
-    DateTime date = DateTime.now();
+  Future<void> _addEntry(bool income) async => _showEntryDialog(income);
+
+  Future<void> _editEntry(Entry entry) async =>
+      _showEntryDialog(entry.income, existing: entry);
+
+  Future<void> _showEntryDialog(bool income, {Entry? existing}) async {
+    final amountC = TextEditingController(
+        text: existing == null ? '' : fmt(existing.amount).replaceAll(',', ''));
+    final noteC = TextEditingController(text: existing?.note ?? '');
+    DateTime date = existing?.date ?? DateTime.now();
+    final formKey = GlobalKey<FormState>();
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setD) => AlertDialog(
-          title: Text(income ? 'Add Income' : 'Add Expense',
-              style: TextStyle(color: income ? Colors.green : Colors.red)),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: amountC,
-                autofocus: true,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                    labelText: 'Amount (Rs)', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteC,
-                decoration: const InputDecoration(
-                    labelText: 'Details', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.calendar_today),
-                label: Text(fmtDate(date)),
-                onPressed: () async {
-                  final d = await showDatePicker(
-                    context: ctx,
-                    initialDate: date,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                  );
-                  if (d != null) setD(() => date = d);
-                },
-              ),
-            ]),
+          title: Text(existing == null
+              ? (income ? 'Add Income' : 'Add Expense')
+              : 'Edit Entry',
+              style: TextStyle(
+                color: income ? const Color(0xFF16805D) : const Color(0xFFC2414B),
+                fontWeight: FontWeight.w700)),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextFormField(
+                  controller: amountC,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount (Rs)',
+                    prefixText: 'Rs ',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) {
+                    final amount = double.tryParse((v ?? '').trim().replaceAll(',', ''));
+                    if (amount == null || !amount.isFinite || amount <= 0) {
+                      return 'Enter a valid amount greater than zero';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: noteC,
+                  maxLength: 120,
+                  decoration: const InputDecoration(
+                    labelText: 'Details',
+                    hintText: 'What was this transaction for?',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: Text(fmtDate(date)),
+                  onPressed: () async {
+                    final d = await showDatePicker(
+                      context: ctx,
+                      initialDate: date,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2100),
+                    );
+                    if (d != null) setD(() => date = DateTime(
+                      d.year, d.month, d.day, date.hour, date.minute));
+                  },
+                ),
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(income ? 'Transaction type: Income' : 'Transaction type: Expense',
+                    style: Theme.of(ctx).textTheme.bodySmall),
+                ),
+              ]),
+            ),
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel')),
-            FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Save')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+            FilledButton.icon(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.pop(ctx, true);
+                }
+              },
+              icon: Icon(existing == null ? Icons.save_outlined : Icons.check),
+              label: Text(existing == null ? 'Save entry' : 'Save changes'),
+            ),
           ],
         ),
       ),
     );
 
-    if (ok == true) {
-      final amt = double.tryParse(amountC.text.trim());
-      if (amt == null || amt <= 0) return;
+    if (ok == true && mounted) {
+      final amt = double.parse(amountC.text.trim().replaceAll(',', ''));
       setState(() {
-        entries.add(Entry(DateTime.now().microsecondsSinceEpoch.toString(),
-            current, noteC.text.trim(), income, amt, date));
+        if (existing == null) {
+          entries.add(Entry(DateTime.now().microsecondsSinceEpoch.toString(),
+              current, noteC.text.trim(), income, amt, date));
+        } else {
+          final index = entries.indexWhere((e) => e.id == existing.id);
+          if (index != -1) {
+            entries[index]
+              ..amount = amt
+              ..note = noteC.text.trim()
+              ..date = date;
+          }
+        }
       });
-      _save();
+      await _save();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(existing == null ? 'Entry saved successfully' : 'Entry updated successfully'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 
@@ -430,7 +506,7 @@ class _HomePageState extends State<HomePage> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(children: [
-              const Text('Current Balance'),
+              const Text('CURRENT BALANCE', style: TextStyle(fontSize: 12, letterSpacing: 1.1, fontWeight: FontWeight.w700, color: Color(0xFF64748B))),
               Text('Rs ${fmt(balance)}',
                   style: TextStyle(
                       fontSize: 32,
@@ -507,22 +583,60 @@ class _HomePageState extends State<HomePage> {
                               _save();
                             },
                             child: ListTile(
-                              dense: true,
-                              leading: Icon(
+                              dense: false,
+                              onTap: () => _editEntry(e),
+                              leading: CircleAvatar(
+                                backgroundColor: e.income
+                                    ? const Color(0xFFE1F5EC)
+                                    : const Color(0xFFFCE8E8),
+                                child: Icon(
                                   e.income
                                       ? Icons.arrow_downward
                                       : Icons.arrow_upward,
-                                  color: e.income ? Colors.green : Colors.red),
+                                  color: e.income ? const Color(0xFF16805D) : const Color(0xFFC2414B)),
+                              ),
                               title: Text(e.note.isEmpty
                                   ? (e.income ? 'Income' : 'Expense')
                                   : e.note),
-                              trailing: Text(
-                                  '${e.income ? '+' : '-'}${fmt(e.amount)}',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: e.income
-                                          ? Colors.green
-                                          : Colors.red)),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '${e.income ? '+' : '-'}${fmt(e.amount)}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: e.income ? const Color(0xFF16805D) : const Color(0xFFC2414B)),
+                                  ),
+                                  PopupMenuButton<String>(
+                                    tooltip: 'Entry actions',
+                                    onSelected: (action) {
+                                      if (action == 'edit') _editEntry(e);
+                                      if (action == 'delete') {
+                                        showDialog<bool>(
+                                          context: context,
+                                          builder: (c) => AlertDialog(
+                                            title: const Text('Delete this entry?'),
+                                            content: const Text('This action cannot be undone.'),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete')),
+                                            ],
+                                          ),
+                                        ).then((yes) {
+                                          if (yes == true && mounted) {
+                                            setState(() => entries.removeWhere((x) => x.id == e.id));
+                                            _save();
+                                          }
+                                        });
+                                      }
+                                    },
+                                    itemBuilder: (_) => const [
+                                      PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Edit entry'))),
+                                      PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Delete entry'))),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         Padding(
