@@ -19,3 +19,7 @@ Tap the print icon in the app bar, choose all records or a date range, then prin
 - Tap any saved transaction to edit its amount, details, and date.
 - Or open the transaction action menu and choose **Edit entry**.
 - Use the action menu to delete a record with confirmation.
+
+## APK size
+The workflow builds one small APK per CPU type. Install **app-arm64-v8a-release.apk** on almost all modern phones
+(use **app-armeabi-v7a-release.apk** only for old 32-bit phones).
